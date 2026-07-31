@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lush Spin the Wheel — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0b0712;
+      --bg-secondary: #140d21;
+      --bg-card: rgba(20, 13, 33, 0.7);
+      --bg-glass: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --accent: #f43f5e;
+      --accent-glow: rgba(244, 63, 94, 0.25);
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --info: #3b82f6;
+      --info-bg: rgba(59, 130, 246, 0.12);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== Animated background ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 50%, rgba(244, 63, 94, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+      animation: bgFloat 20s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes bgFloat {
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(-2%, 1%); }
+      66% { transform: translate(1%, -2%); }
+    }
+
+    /* ===== LOGIN SCREEN ===== */
+    #loginScreen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      background: var(--bg-primary);
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-card .logo {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+
+    .login-card h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--accent), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .login-card p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 14px 16px 14px 44px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .input-group .icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 18px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent), #d97706);
+      color: #000;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .login-error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* ===== DASHBOARD ===== */
+    #dashboard {
+      display: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 14, 26, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-left .brand {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .topbar-left .badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--accent-glow);
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-glass);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-sm:hover {
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .btn-danger {
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-bg);
+      border-color: var(--danger);
+    }
+
+    .main {
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 28px;
+    }
+
+    .page-header h2 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .page-header p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    /* ===== Stats Cards ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .stat-card .stat-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .stat-card.total .stat-icon { background: var(--info-bg); }
+    .stat-card.total .stat-value { color: var(--info); }
+
+    .stat-card.success .stat-icon { background: var(--success-bg); }
+    .stat-card.success .stat-value { color: var(--success); }
+
+    .stat-card.failed .stat-icon { background: var(--danger-bg); }
+    .stat-card.failed .stat-value { color: var(--danger); }
+
+    .stat-card.airtime .stat-icon { background: rgba(244, 63, 94, 0.12); }
+    .stat-card.airtime .stat-value { color: var(--accent); }
+
+    .stat-card.flash .stat-icon { background: var(--warning-bg); }
+    .stat-card.flash .stat-value { color: var(--warning); }
+
+    /* ===== Table Section ===== */
+    .table-section {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .table-toolbar h3 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tabs {
+      display: flex;
+      background: var(--bg-glass);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .filter-tab {
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      border-right: 1px solid var(--border);
+    }
+
+    .filter-tab:last-child { border-right: none; }
+
+    .filter-tab.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .filter-tab:hover:not(.active) {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .search-box {
+      padding: 8px 14px 8px 36px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 220px;
+      transition: border-color 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 12px center;
+    }
+
+    .search-box:focus {
+      border-color: var(--accent);
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px;
+    }
+
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .cell-name {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .cell-phone {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.success {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .status-badge.failed {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .status-badge.pending {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    .status-badge.no_prize {
+      background: var(--bg-glass);
+      color: var(--text-muted);
+    }
+
+    .retry-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .retry-btn:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--danger);
+    }
+
+    .retry-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+    }
+
+    /* ===== Loading spinner ===== */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== Toast notification ===== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      z-index: 9999;
+      animation: toastIn 0.35s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+      .main { padding: 20px 16px; }
+      .topbar { padding: 12px 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stat-card { padding: 18px; }
+      .stat-card .stat-value { font-size: 22px; }
+      .table-toolbar { flex-direction: column; align-items: flex-start; }
+      .toolbar-actions { width: 100%; }
+      .search-box { width: 100%; }
+      .page-header h2 { font-size: 22px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="logo">🎡</div>
+      <h1>Lush Spin Admin</h1>
+      <p>Enter admin password to access the dashboard</p>
+      <form id="loginForm">
+        <div class="input-group">
+          <span class="icon">🔒</span>
+          <input type="password" id="passwordInput" placeholder="Enter admin password" autocomplete="off" required>
+        </div>
+        <button type="submit" class="btn-primary">Access Dashboard</button>
+      </form>
+      <p class="login-error" id="loginError">Incorrect password. Try again.</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span style="font-size: 24px;">🎡</span>
+        <span class="brand">Lush Admin</span>
+        <span class="badge">LIVE</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-sm" onclick="refreshData()">🔄 Refresh</button>
+        <button class="btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+        <button class="btn-sm btn-danger" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="page-header">
+        <h2>Claims Dashboard</h2>
+        <p id="lastUpdated">Last updated: —</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card total">
+          <div class="stat-icon">📊</div>
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-label">Total Spins</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value" id="statSuccess">—</div>
+          <div class="stat-label">Successful</div>
+        </div>
+        <div class="stat-card failed">
+          <div class="stat-icon">❌</div>
+          <div class="stat-value" id="statFailed">—</div>
+          <div class="stat-label">Failed Payouts</div>
+        </div>
+        <div class="stat-card airtime">
+          <div class="stat-icon">💰</div>
+          <div class="stat-value" id="statAirtime">—</div>
+          <div class="stat-label">Airtime Payout (₦)</div>
+        </div>
+        <div class="stat-card flash">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-value" id="statFlashSales">—</div>
+          <div class="stat-label">Flash Sales Claimed</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-section">
+        <div class="table-toolbar">
+          <h3>Transaction Records</h3>
+          <div class="toolbar-actions">
+            <div class="filter-tabs">
+              <button class="filter-tab active" data-filter="all" onclick="setFilter('all', this)">All</button>
+              <button class="filter-tab" data-filter="success" onclick="setFilter('success', this)">Success</button>
+              <button class="filter-tab" data-filter="failed" onclick="setFilter('failed', this)">Failed</button>
+              <button class="filter-tab" data-filter="pending" onclick="setFilter('pending', this)">Pending</button>
+            </div>
+            <input type="text" class="search-box" id="searchBox" placeholder="Search name, phone..." oninput="renderTable()">
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Prize Won</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="claimsTableBody">
+              <tr>
+                <td colspan="8" class="empty-state">
+                  <div class="empty-icon">📭</div>
+                  <p>Loading claims data...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== CONFIG ==========
+    const RENDER_BACKEND = 'https://lushbackend.onrender.com'; // <-- Replace with your production Render URL when deployed
+    // Auto-detect: if opened locally, use localhost:3000; if opened from the web, use the Render production backend
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : RENDER_BACKEND;
+    let allClaims = [];
+    let currentFilter = 'all';
+    let adminToken = '';
+
+    // ========== LOGIN ==========
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('passwordInput').value;
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          adminToken = password;
+          sessionStorage.setItem('adminToken', adminToken);
+          showDashboard();
+        } else {
+          document.getElementById('loginError').style.display = 'block';
+          document.getElementById('passwordInput').value = '';
+          document.getElementById('passwordInput').focus();
+        }
+      } catch (err) {
+        document.getElementById('loginError').textContent = 'Connection error. Is the server running?';
+        document.getElementById('loginError').style.display = 'block';
+      }
+    });
+
+    function showDashboard() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      refreshData();
+    }
+
+    function logout() {
+      sessionStorage.removeItem('adminToken');
+      adminToken = '';
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('passwordInput').value = '';
+      document.getElementById('loginError').style.display = 'none';
+    }
+
+    // Auto-login if session exists
+    (function checkSession() {
+      const saved = sessionStorage.getItem('adminToken');
+      if (saved) {
+        adminToken = saved;
+        showDashboard();
+      }
+    })();
+
+    // ========== DATA ==========
+    async function refreshData() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/stats`, {
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        if (res.status === 401) {
+          logout();
+          return;
+        }
+        const data = await res.json();
+        allClaims = data.claims || [];
+        updateStats();
+        renderTable();
+        document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleString();
+      } catch (err) {
+        showToast('Failed to load data: ' + err.message, 'error');
+      }
+    }
+
+    function updateStats() {
+      const total = allClaims.length;
+      const successCount = allClaims.filter(c => c.status === 'success').length;
+      const failedCount = allClaims.filter(c => c.status === 'failed').length;
+      const totalAirtime = allClaims
+        .filter(c => c.status === 'success')
+        .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+      const flashCount = allClaims.filter(c => c.prize_won === 'Super Flash Sale' && c.status !== 'failed').length;
+
+      animateNumber('statTotal', total);
+      animateNumber('statSuccess', successCount);
+      animateNumber('statFailed', failedCount);
+      document.getElementById('statAirtime').textContent = '₦' + totalAirtime.toLocaleString();
+      document.getElementById('statFlashSales').textContent = flashCount + ' / 2';
+    }
+
+    function animateNumber(id, target) {
+      const el = document.getElementById(id);
+      const duration = 600;
+      const start = parseInt(el.textContent) || 0;
+      const startTime = performance.now();
+
+      function step(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.floor(start + (target - start) * eased);
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ========== TABLE ==========
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      renderTable();
+    }
+
+    function renderTable() {
+      const search = document.getElementById('searchBox').value.toLowerCase().trim();
+      let filtered = allClaims;
+
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(c => c.status === currentFilter);
+      }
+
+      if (search) {
+        filtered = filtered.filter(c =>
+          (c.name || '').toLowerCase().includes(search) ||
+          (c.phone_number || c.number || '').includes(search) ||
+          (c.city || '').toLowerCase().includes(search) ||
+          (c.email || '').toLowerCase().includes(search)
+        );
+      }
+
+      const tbody = document.getElementById('claimsTableBody');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr><td colspan="8">
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <p>No ${currentFilter === 'all' ? '' : currentFilter} claims found${search ? ' matching "' + search + '"' : ''}</p>
+            </div>
+          </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((c, i) => {
+        const name = c.name || 'Anonymous';
+        const phone = c.phone_number || c.number || '—';
+        const city = c.city || '—';
+        const prize = c.prize_won || '—';
+        const status = c.status || 'pending';
+        const date = c.created_at || c.timestamp
+          ? new Date(c.created_at || c.timestamp).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '—';
+        const claimId = c.id;
+
+        const statusDot = {
+          success: '●',
+          failed: '●',
+          pending: '●',
+          no_prize: '●'
+        }[status] || '●';
+
+        // Prize badge style mapper
+        const prizeClass = {
+          '₦200 Airtime': 'info',
+          '10% Discount': 'success',
+          'Super Flash Sale': 'warning'
+        }[prize] || 'no_prize';
+
+        return `
+          <tr>
+            <td style="color:var(--text-muted)">${i + 1}</td>
+            <td class="cell-name">${escapeHtml(name)}</td>
+            <td class="cell-phone">${escapeHtml(phone)}</td>
+            <td>${escapeHtml(city)}</td>
+            <td><span class="status-badge ${prizeClass}">${escapeHtml(prize)}</span></td>
+            <td><span class="status-badge ${status}">${statusDot} ${status.replace('_', ' ')}</span></td>
+            <td>${date}</td>
+            <td>${status === 'failed' ? `<button class="retry-btn" onclick="retryClaimById(${claimId}, this)">⟳ Retry</button>` : '—'}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ========== RETRY ==========
+    async function retryClaimById(id, btn) {
+      if (!confirm('Retry airtime payout for this failed claim?')) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/retry/${id}`, {
+          method: 'POST',
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showToast('✅ Airtime retry successful!', 'success');
+        } else {
+          showToast('❌ Retry failed: ' + (data.message || 'Unknown error'), 'error');
+        }
+        await refreshData();
+      } catch (err) {
+        showToast('Connection error: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '⟳ Retry';
+      }
+    }
+
+    // ========== CSV EXPORT ==========
+    function exportCSV() {
+      if (allClaims.length === 0) {
+        showToast('No data to export', 'error');
+        return;
+      }
+
+      const headers = ['#', 'Name', 'Phone', 'City', 'Email', 'Amount (₦)', 'Status', 'Date'];
+      const rows = allClaims.map((c, i) => [
+        i + 1,
+        `"${(c.name || 'Anonymous').replace(/"/g, '""')}"`,
+        c.phone_number || c.number || '',
+        `"${(c.city || '').replace(/"/g, '""')}"`,
+        c.email || '',
+        parseFloat(c.amount) || 0,
+        c.status || 'pending',
+        c.created_at || c.timestamp || ''
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PowerOil_Claims_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📥 CSV exported successfully!', 'success');
+    }
+
+    // ========== TOAST ==========
+    function showToast(msg, type = 'success') {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+  </script>
+</body>
+</html>
