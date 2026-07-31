@@ -803,19 +803,17 @@ app.post('/api/admin/retry/:id', adminAuth, async (req, res) => {
 });
 
 // Keep-Alive Self-Ping System (Prevents Render Free Tier from going to sleep)
-const PUBLIC_URL = process.env.PUBLIC_URL;
-if (PUBLIC_URL) {
-  console.log(`[Keep-Alive]: Active. Pinging ${PUBLIC_URL} every 10 minutes.`);
-  setInterval(() => {
-    const url = `${PUBLIC_URL}/ping`;
-    const reqLib = url.startsWith('https') ? require('https') : require('http');
-    reqLib.get(url, (res) => {
-      console.log(`[Keep-Alive]: Self-ping successful (Status: ${res.statusCode})`);
-    }).on('error', (err) => {
-      console.error('[Keep-Alive Error]:', err.message);
-    });
-  }, 10 * 60 * 1000); // 10 minutes
-}
+const PUBLIC_URL = 'https://lush-backend-jwip.onrender.com';
+console.log(`[Keep-Alive]: Active. Pinging ${PUBLIC_URL} every 10 minutes.`);
+setInterval(() => {
+  const url = `${PUBLIC_URL}/ping`;
+  const reqLib = url.startsWith('https') ? require('https') : require('http');
+  reqLib.get(url, (res) => {
+    console.log(`[Keep-Alive]: Self-ping successful (Status: ${res.statusCode})`);
+  }).on('error', (err) => {
+    console.error('[Keep-Alive Error]:', err.message);
+  });
+}, 10 * 60 * 1000); // 10 minutes
 
 app.listen(PORT, () => {
   console.log(`===================================================`);
