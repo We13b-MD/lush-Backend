@@ -722,9 +722,9 @@
           <div class="stat-label">Viewability Rate</div>
         </div>
         <div class="stat-card clicks">
-          <div class="stat-icon">🖱️</div>
+          <div class="stat-icon">🎡</div>
           <div class="stat-value" id="statClicks">—</div>
-          <div class="stat-label">Total Clicks</div>
+          <div class="stat-label">Total Spins</div>
         </div>
         <div class="stat-card exposure">
           <div class="stat-icon">⏳</div>
@@ -883,7 +883,7 @@
 
       // Update new analytics cards
       animateNumber('statImpressions', summary.totalImpressions);
-      animateNumber('statClicks', summary.totalClicks);
+      animateNumber('statClicks', summary.totalClicksSpin);
 
       // Viewability Rate
       const viewRateEl = document.getElementById('statViewability');
