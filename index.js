@@ -91,6 +91,8 @@
       handled = true;
       e.preventDefault();
       
+      trackClick('tap_button');
+      
       var board = document.getElementById('Board');
       if (board && typeof gsap !== 'undefined') {
         spinWheel(board);
@@ -103,6 +105,8 @@
       if (!tapArea) return;
 
       if (handled) return;
+      
+      trackClick('tap_button');
       
       var board = document.getElementById('Board');
       if (board && typeof gsap !== 'undefined') {

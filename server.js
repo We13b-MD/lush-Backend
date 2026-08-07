@@ -96,9 +96,11 @@ async function initPostgresDB() {
         clicks_spin INTEGER DEFAULT 0,
         clicks_buy INTEGER DEFAULT 0,
         exposure_time INTEGER DEFAULT 0,
+        clicks_tap INTEGER DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      ALTER TABLE lush_analytics ADD COLUMN IF NOT EXISTS clicks_tap INTEGER DEFAULT 0;
     `;
     await pool.query(createAnalyticsTableQuery);
 
@@ -693,6 +695,7 @@ function localAnalyticsUpsert(session_id, updater) {
       clicks_spin: 0,
       clicks_buy: 0,
       exposure_time: 0,
+      clicks_tap: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -713,8 +716,8 @@ app.post('/api/analytics/init', async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
-        VALUES ($1, 1, 0, 0, 0, 0)
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+        VALUES ($1, 1, 0, 0, 0, 0, 0)
         ON CONFLICT (session_id) DO NOTHING
       `, [session_id]);
       return res.json({ status: 'success' });
@@ -738,8 +741,8 @@ app.post('/api/analytics/viewable', async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
-        VALUES ($1, 1, 1, 0, 0, 0)
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+        VALUES ($1, 1, 1, 0, 0, 0, 0)
         ON CONFLICT (session_id) DO UPDATE SET viewable = 1, updated_at = NOW()
       `, [session_id]);
       return res.json({ status: 'success' });
@@ -766,15 +769,21 @@ app.post('/api/analytics/click', async (req, res) => {
     try {
       if (click_type === 'spin') {
         await pool.query(`
-          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
-          VALUES ($1, 1, 0, 1, 0, 0)
+          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+          VALUES ($1, 1, 0, 1, 0, 0, 0)
           ON CONFLICT (session_id) DO UPDATE SET clicks_spin = lush_analytics.clicks_spin + 1, updated_at = NOW()
         `, [session_id]);
       } else if (click_type === 'buy') {
         await pool.query(`
-          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
-          VALUES ($1, 1, 0, 0, 1, 0)
+          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+          VALUES ($1, 1, 0, 0, 1, 0, 0)
           ON CONFLICT (session_id) DO UPDATE SET clicks_buy = lush_analytics.clicks_buy + 1, updated_at = NOW()
+        `, [session_id]);
+      } else if (click_type === 'tap_button') {
+        await pool.query(`
+          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+          VALUES ($1, 1, 0, 0, 0, 0, 1)
+          ON CONFLICT (session_id) DO UPDATE SET clicks_tap = lush_analytics.clicks_tap + 1, updated_at = NOW()
         `, [session_id]);
       }
       return res.json({ status: 'success' });
@@ -787,6 +796,10 @@ app.post('/api/analytics/click', async (req, res) => {
   localAnalyticsUpsert(session_id, (rec) => {
     if (click_type === 'spin') rec.clicks_spin++;
     else if (click_type === 'buy') rec.clicks_buy++;
+    else if (click_type === 'tap_button') {
+      if (!rec.clicks_tap) rec.clicks_tap = 0;
+      rec.clicks_tap++;
+    }
   });
   return res.json({ status: 'success' });
 });
@@ -802,8 +815,8 @@ app.post('/api/analytics/exposure', async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
-        VALUES ($1, 1, 0, 0, 0, $2)
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time, clicks_tap)
+        VALUES ($1, 1, 0, 0, 0, $2, 0)
         ON CONFLICT (session_id) DO UPDATE SET exposure_time = lush_analytics.exposure_time + $2, updated_at = NOW()
       `, [session_id, secs]);
       return res.json({ status: 'success' });
@@ -829,7 +842,8 @@ async function getAnalyticsSummary() {
           COALESCE(SUM(viewable), 0)::integer as total_viewable,
           COALESCE(SUM(clicks_spin), 0)::integer as total_clicks_spin,
           COALESCE(SUM(clicks_buy), 0)::integer as total_clicks_buy,
-          COALESCE(SUM(exposure_time), 0)::integer as total_exposure_time
+          COALESCE(SUM(exposure_time), 0)::integer as total_exposure_time,
+          COALESCE(SUM(clicks_tap), 0)::integer as total_clicks_tap
         FROM lush_analytics
       `);
       const row = result.rows[0] || {};
@@ -837,6 +851,7 @@ async function getAnalyticsSummary() {
       const totalViewable = parseInt(row.total_viewable) || 0;
       const totalClicksSpin = parseInt(row.total_clicks_spin) || 0;
       const totalClicksBuy = parseInt(row.total_clicks_buy) || 0;
+      const totalClicksTap = parseInt(row.total_clicks_tap) || 0;
       const totalClicks = totalClicksSpin + totalClicksBuy;
       const totalExposureTime = parseInt(row.total_exposure_time) || 0;
 
@@ -846,6 +861,7 @@ async function getAnalyticsSummary() {
         viewabilityRate: totalImpressions > 0 ? (totalViewable / totalImpressions) * 100 : 0,
         totalClicksSpin,
         totalClicksBuy,
+        totalClicksTap,
         totalClicks,
         totalExposureTime,
         avgExposureTime: totalImpressions > 0 ? (totalExposureTime / totalImpressions) : 0
@@ -863,6 +879,7 @@ async function getAnalyticsSummary() {
     const totalViewable = analytics.reduce((sum, r) => sum + (r.viewable || 0), 0);
     const totalClicksSpin = analytics.reduce((sum, r) => sum + (r.clicks_spin || 0), 0);
     const totalClicksBuy = analytics.reduce((sum, r) => sum + (r.clicks_buy || 0), 0);
+    const totalClicksTap = analytics.reduce((sum, r) => sum + (r.clicks_tap || 0), 0);
     const totalClicks = totalClicksSpin + totalClicksBuy;
     const totalExposureTime = analytics.reduce((sum, r) => sum + (r.exposure_time || 0), 0);
 
@@ -872,6 +889,7 @@ async function getAnalyticsSummary() {
       viewabilityRate: totalImpressions > 0 ? (totalViewable / totalImpressions) * 100 : 0,
       totalClicksSpin,
       totalClicksBuy,
+      totalClicksTap,
       totalClicks,
       totalExposureTime,
       avgExposureTime: totalImpressions > 0 ? (totalExposureTime / totalImpressions) : 0

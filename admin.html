@@ -347,6 +347,9 @@
     .stat-card.clicks .stat-icon { background: rgba(236, 72, 153, 0.12); }
     .stat-card.clicks .stat-value { color: #ec4899; }
 
+    .stat-card.spins .stat-icon { background: rgba(245, 158, 11, 0.12); }
+    .stat-card.spins .stat-value { color: #f59e0b; }
+
     .stat-card.exposure .stat-icon { background: rgba(20, 184, 166, 0.12); }
     .stat-card.exposure .stat-value { color: #14b8a6; }
 
@@ -722,8 +725,13 @@
           <div class="stat-label">Viewability Rate</div>
         </div>
         <div class="stat-card clicks">
-          <div class="stat-icon">🎡</div>
+          <div class="stat-icon">🖱️</div>
           <div class="stat-value" id="statClicks">—</div>
+          <div class="stat-label">Total Clicks</div>
+        </div>
+        <div class="stat-card spins">
+          <div class="stat-icon">🎡</div>
+          <div class="stat-value" id="statSpins">—</div>
           <div class="stat-label">Total Spins</div>
         </div>
         <div class="stat-card exposure">
@@ -854,6 +862,7 @@
           viewabilityRate: 0,
           totalClicksSpin: 0,
           totalClicksBuy: 0,
+          totalClicksTap: 0,
           totalClicks: 0,
           totalExposureTime: 0,
           avgExposureTime: 0
@@ -883,7 +892,8 @@
 
       // Update new analytics cards
       animateNumber('statImpressions', summary.totalImpressions);
-      animateNumber('statClicks', summary.totalClicksSpin);
+      animateNumber('statClicks', summary.totalClicksTap);
+      animateNumber('statSpins', summary.totalClicksSpin);
 
       // Viewability Rate
       const viewRateEl = document.getElementById('statViewability');
