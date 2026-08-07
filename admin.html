@@ -762,6 +762,7 @@
                 <th>#</th>
                 <th>Name</th>
                 <th>Phone</th>
+                <th>Email</th>
                 <th>City</th>
                 <th>Prize Won</th>
                 <th>Status</th>
@@ -771,7 +772,7 @@
             </thead>
             <tbody id="claimsTableBody">
               <tr>
-                <td colspan="8" class="empty-state">
+                <td colspan="9" class="empty-state">
                   <div class="empty-icon">📭</div>
                   <p>Loading claims data...</p>
                 </td>
@@ -954,7 +955,7 @@
 
       if (filtered.length === 0) {
         tbody.innerHTML = `
-          <tr><td colspan="8">
+          <tr><td colspan="9">
             <div class="empty-state">
               <div class="empty-icon">📭</div>
               <p>No ${currentFilter === 'all' ? '' : currentFilter} claims found${search ? ' matching "' + search + '"' : ''}</p>
@@ -966,6 +967,7 @@
       tbody.innerHTML = filtered.map((c, i) => {
         const name = c.name || 'Anonymous';
         const phone = c.phone_number || c.number || '—';
+        const email = c.email || '—';
         const city = c.city || '—';
         const prize = c.prize_won || '—';
         const status = c.status || 'pending';
@@ -998,6 +1000,7 @@
             <td style="color:var(--text-muted)">${i + 1}</td>
             <td class="cell-name">${escapeHtml(name)}</td>
             <td class="cell-phone">${escapeHtml(phone)}</td>
+            <td>${escapeHtml(email)}</td>
             <td>${escapeHtml(city)}</td>
             <td><span class="status-badge ${prizeClass}">${escapeHtml(prize)}</span></td>
             <td><span class="status-badge ${status}">${statusDot} ${status.replace('_', ' ')}</span></td>
