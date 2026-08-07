@@ -1033,6 +1033,40 @@ app.post('/api/admin/retry/:id', adminAuth, async (req, res) => {
   return res.json({ status: 'success', message: `₦${amount} airtime retried successfully for ${phone}` });
 });
 
+// Admin: Delete a Claim
+app.delete('/api/admin/delete/:id', adminAuth, async (req, res) => {
+  const claimId = req.params.id;
+
+  // PostgreSQL Mode
+  if (pool) {
+    try {
+      console.log(`[Admin Delete]: Request to delete claim ID ${claimId}...`);
+      const result = await pool.query('DELETE FROM lush_claims WHERE id = $1 RETURNING id;', [claimId]);
+      if (result.rowCount === 0) {
+        return res.status(404).json({ status: 'error', message: 'Claim not found' });
+      }
+      console.log(`[Admin Delete]: Claim ID ${claimId} successfully deleted from Postgres.`);
+      return res.json({ status: 'success', message: 'Claim successfully deleted' });
+    } catch (err) {
+      console.error('[Admin Delete Error]:', err.message);
+      return res.status(500).json({ status: 'error', message: err.message });
+    }
+  }
+
+  // Fallback: Local JSON DB Mode
+  const db = loadLocalDatabase();
+  const index = db.claims.findIndex(c => String(c.id) === String(claimId));
+  if (index === -1) {
+    return res.status(404).json({ status: 'error', message: 'Claim not found' });
+  }
+
+  console.log(`[Admin Delete Local]: Deleting claim ID ${claimId} from local JSON DB...`);
+  db.claims.splice(index, 1);
+  saveLocalDatabase(db);
+  console.log(`[Admin Delete Local]: Claim ID ${claimId} successfully deleted.`);
+  return res.json({ status: 'success', message: 'Claim successfully deleted' });
+});
+
 // Keep-Alive Self-Ping System (Prevents Render Free Tier from going to sleep)
 const PUBLIC_URL = 'https://lush-backend-jwip.onrender.com';
 console.log(`[Keep-Alive]: Active. Pinging ${PUBLIC_URL} every 10 minutes.`);

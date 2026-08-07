@@ -542,6 +542,30 @@
       cursor: not-allowed;
     }
 
+    .delete-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.22);
+      border-color: #ef4444;
+      color: #fff;
+    }
+
+    .delete-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -954,6 +978,11 @@
           'Super Flash Sale': 'warning'
         }[prize] || 'no_prize';
 
+        const retryBtn = status === 'failed' 
+          ? `<button class="retry-btn" onclick="retryClaimById(${claimId}, this)">⟳ Retry</button>` 
+          : '';
+        const deleteBtn = `<button class="delete-btn" onclick="deleteClaimById(${claimId}, this)">🗑️ Delete</button>`;
+
         return `
           <tr>
             <td style="color:var(--text-muted)">${i + 1}</td>
@@ -963,7 +992,12 @@
             <td><span class="status-badge ${prizeClass}">${escapeHtml(prize)}</span></td>
             <td><span class="status-badge ${status}">${statusDot} ${status.replace('_', ' ')}</span></td>
             <td>${date}</td>
-            <td>${status === 'failed' ? `<button class="retry-btn" onclick="retryClaimById(${claimId}, this)">⟳ Retry</button>` : '—'}</td>
+            <td>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                ${retryBtn}
+                ${deleteBtn}
+              </div>
+            </td>
           </tr>`;
       }).join('');
     }
@@ -996,6 +1030,31 @@
         showToast('Connection error: ' + err.message, 'error');
         btn.disabled = false;
         btn.innerHTML = '⟳ Retry';
+      }
+    }
+
+    // ========== DELETE ==========
+    async function deleteClaimById(id, btn) {
+      if (!confirm('🗑️ Are you sure you want to permanently delete this claim record? This cannot be undone.')) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/delete/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+          showToast('🗑️ Claim deleted successfully!', 'success');
+        } else {
+          showToast('❌ Delete failed: ' + (data.message || 'Unknown error'), 'error');
+        }
+        await refreshData();
+      } catch (err) {
+        showToast('Connection error: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🗑️ Delete';
       }
     }
 
