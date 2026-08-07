@@ -338,6 +338,18 @@
     .stat-card.flash .stat-icon { background: var(--warning-bg); }
     .stat-card.flash .stat-value { color: var(--warning); }
 
+    .stat-card.impressions .stat-icon { background: rgba(168, 85, 247, 0.12); }
+    .stat-card.impressions .stat-value { color: #a855f7; }
+
+    .stat-card.viewability .stat-icon { background: rgba(59, 130, 246, 0.12); }
+    .stat-card.viewability .stat-value { color: #3b82f6; }
+
+    .stat-card.clicks .stat-icon { background: rgba(236, 72, 153, 0.12); }
+    .stat-card.clicks .stat-value { color: #ec4899; }
+
+    .stat-card.exposure .stat-icon { background: rgba(20, 184, 166, 0.12); }
+    .stat-card.exposure .stat-value { color: #14b8a6; }
+
     /* ===== Table Section ===== */
     .table-section {
       background: var(--bg-card);
@@ -653,7 +665,7 @@
         <div class="stat-card total">
           <div class="stat-icon">📊</div>
           <div class="stat-value" id="statTotal">—</div>
-          <div class="stat-label">Total Spins</div>
+          <div class="stat-label">Claims Submitted</div>
         </div>
         <div class="stat-card success">
           <div class="stat-icon">✅</div>
@@ -674,6 +686,26 @@
           <div class="stat-icon">⚡</div>
           <div class="stat-value" id="statFlashSales">—</div>
           <div class="stat-label">Flash Sales Claimed</div>
+        </div>
+        <div class="stat-card impressions">
+          <div class="stat-icon">👁️</div>
+          <div class="stat-value" id="statImpressions">—</div>
+          <div class="stat-label">Total Impressions</div>
+        </div>
+        <div class="stat-card viewability">
+          <div class="stat-icon">📈</div>
+          <div class="stat-value" id="statViewability">—</div>
+          <div class="stat-label">Viewability Rate</div>
+        </div>
+        <div class="stat-card clicks">
+          <div class="stat-icon">🖱️</div>
+          <div class="stat-value" id="statClicks">—</div>
+          <div class="stat-label">Total Clicks</div>
+        </div>
+        <div class="stat-card exposure">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-value" id="statExposure">—</div>
+          <div class="stat-label">Avg Exposure Time</div>
         </div>
       </div>
 
@@ -792,7 +824,17 @@
         }
         const data = await res.json();
         allClaims = data.claims || [];
-        updateStats();
+        const summary = data.summary || {
+          totalImpressions: 0,
+          totalViewable: 0,
+          viewabilityRate: 0,
+          totalClicksSpin: 0,
+          totalClicksBuy: 0,
+          totalClicks: 0,
+          totalExposureTime: 0,
+          avgExposureTime: 0
+        };
+        updateStats(summary);
         renderTable();
         document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleString();
       } catch (err) {
@@ -800,7 +842,7 @@
       }
     }
 
-    function updateStats() {
+    function updateStats(summary) {
       const total = allClaims.length;
       const successCount = allClaims.filter(c => c.status === 'success').length;
       const failedCount = allClaims.filter(c => c.status === 'failed').length;
@@ -814,6 +856,24 @@
       animateNumber('statFailed', failedCount);
       document.getElementById('statAirtime').textContent = '₦' + totalAirtime.toLocaleString();
       document.getElementById('statFlashSales').textContent = flashCount + ' / 2';
+
+      // Update new analytics cards
+      animateNumber('statImpressions', summary.totalImpressions);
+      animateNumber('statClicks', summary.totalClicks);
+
+      // Viewability Rate
+      const viewRateEl = document.getElementById('statViewability');
+      animateNumber('statViewability', Math.round(summary.viewabilityRate));
+      setTimeout(() => {
+        viewRateEl.textContent = Math.round(summary.viewabilityRate) + '%';
+      }, 700);
+
+      // Avg Exposure Time
+      const expEl = document.getElementById('statExposure');
+      animateNumber('statExposure', Math.round(summary.avgExposureTime));
+      setTimeout(() => {
+        expEl.textContent = Math.round(summary.avgExposureTime) + 's';
+      }, 700);
     }
 
     function animateNumber(id, target) {

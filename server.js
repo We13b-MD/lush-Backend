@@ -87,6 +87,21 @@ async function initPostgresDB() {
       ALTER TABLE lush_claims ADD COLUMN IF NOT EXISTS prize_won VARCHAR(100);
     `;
     await pool.query(createTableQuery);
+
+    const createAnalyticsTableQuery = `
+      CREATE TABLE IF NOT EXISTS lush_analytics (
+        session_id VARCHAR(100) PRIMARY KEY,
+        impressions INTEGER DEFAULT 1,
+        viewable INTEGER DEFAULT 0,
+        clicks_spin INTEGER DEFAULT 0,
+        clicks_buy INTEGER DEFAULT 0,
+        exposure_time INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+    await pool.query(createAnalyticsTableQuery);
+
     console.log('[Supabase PostgreSQL]: Connected to Supabase DB & verified table schema!');
     await syncLocalDataToPostgres();
   } catch (err) {
@@ -161,14 +176,17 @@ app.use(express.static(__dirname));
 // Fallback JSON DB Helpers
 function loadLocalDatabase() {
   if (!fs.existsSync(DB_FILE)) {
-    const initialData = { claims: [] };
+    const initialData = { claims: [], analytics: [] };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
     return initialData;
   }
   try {
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    if (!data.claims) data.claims = [];
+    if (!data.analytics) data.analytics = [];
+    return data;
   } catch (err) {
-    return { claims: [] };
+    return { claims: [], analytics: [] };
   }
 }
 
@@ -663,18 +681,230 @@ app.post('/api/spin', limiter, handleSpin);
 app.get('/api/claim-prize', limiter, handleClaim);
 app.post('/api/claim-prize', limiter, handleClaim);
 
+// Local analytics database upsert helper
+function localAnalyticsUpsert(session_id, updater) {
+  const db = loadLocalDatabase();
+  let record = db.analytics.find(r => r.session_id === session_id);
+  if (!record) {
+    record = {
+      session_id,
+      impressions: 1,
+      viewable: 0,
+      clicks_spin: 0,
+      clicks_buy: 0,
+      exposure_time: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    db.analytics.push(record);
+  }
+  updater(record);
+  record.updated_at = new Date().toISOString();
+  saveLocalDatabase(db);
+}
+
+// Analytics API Endpoint: Init/Impression
+app.post('/api/analytics/init', async (req, res) => {
+  const { session_id } = req.body;
+  if (!session_id) {
+    return res.status(400).json({ status: 'error', message: 'session_id is required' });
+  }
+
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
+        VALUES ($1, 1, 0, 0, 0, 0)
+        ON CONFLICT (session_id) DO NOTHING
+      `, [session_id]);
+      return res.json({ status: 'success' });
+    } catch (err) {
+      console.error('[Analytics Postgres Init Error]:', err.message);
+    }
+  }
+
+  // Local fallback
+  localAnalyticsUpsert(session_id, (rec) => {});
+  return res.json({ status: 'success' });
+});
+
+// Analytics API Endpoint: Mark Viewable
+app.post('/api/analytics/viewable', async (req, res) => {
+  const { session_id } = req.body;
+  if (!session_id) {
+    return res.status(400).json({ status: 'error', message: 'session_id is required' });
+  }
+
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
+        VALUES ($1, 1, 1, 0, 0, 0)
+        ON CONFLICT (session_id) DO UPDATE SET viewable = 1, updated_at = NOW()
+      `, [session_id]);
+      return res.json({ status: 'success' });
+    } catch (err) {
+      console.error('[Analytics Postgres Viewable Error]:', err.message);
+    }
+  }
+
+  // Local fallback
+  localAnalyticsUpsert(session_id, (rec) => {
+    rec.viewable = 1;
+  });
+  return res.json({ status: 'success' });
+});
+
+// Analytics API Endpoint: Track Click
+app.post('/api/analytics/click', async (req, res) => {
+  const { session_id, click_type } = req.body;
+  if (!session_id || !click_type) {
+    return res.status(400).json({ status: 'error', message: 'session_id and click_type are required' });
+  }
+
+  if (pool) {
+    try {
+      if (click_type === 'spin') {
+        await pool.query(`
+          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
+          VALUES ($1, 1, 0, 1, 0, 0)
+          ON CONFLICT (session_id) DO UPDATE SET clicks_spin = lush_analytics.clicks_spin + 1, updated_at = NOW()
+        `, [session_id]);
+      } else if (click_type === 'buy') {
+        await pool.query(`
+          INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
+          VALUES ($1, 1, 0, 0, 1, 0)
+          ON CONFLICT (session_id) DO UPDATE SET clicks_buy = lush_analytics.clicks_buy + 1, updated_at = NOW()
+        `, [session_id]);
+      }
+      return res.json({ status: 'success' });
+    } catch (err) {
+      console.error('[Analytics Postgres Click Error]:', err.message);
+    }
+  }
+
+  // Local fallback
+  localAnalyticsUpsert(session_id, (rec) => {
+    if (click_type === 'spin') rec.clicks_spin++;
+    else if (click_type === 'buy') rec.clicks_buy++;
+  });
+  return res.json({ status: 'success' });
+});
+
+// Analytics API Endpoint: Track Exposure Duration
+app.post('/api/analytics/exposure', async (req, res) => {
+  const { session_id, seconds } = req.body;
+  const secs = parseInt(seconds) || 0;
+  if (!session_id) {
+    return res.status(400).json({ status: 'error', message: 'session_id is required' });
+  }
+
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO lush_analytics (session_id, impressions, viewable, clicks_spin, clicks_buy, exposure_time)
+        VALUES ($1, 1, 0, 0, 0, $2)
+        ON CONFLICT (session_id) DO UPDATE SET exposure_time = lush_analytics.exposure_time + $2, updated_at = NOW()
+      `, [session_id, secs]);
+      return res.json({ status: 'success' });
+    } catch (err) {
+      console.error('[Analytics Postgres Exposure Error]:', err.message);
+    }
+  }
+
+  // Local fallback
+  localAnalyticsUpsert(session_id, (rec) => {
+    rec.exposure_time += secs;
+  });
+  return res.json({ status: 'success' });
+});
+
+// Helper to calculate analytics summary
+async function getAnalyticsSummary() {
+  if (pool) {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          COALESCE(SUM(impressions), 0)::integer as total_impressions,
+          COALESCE(SUM(viewable), 0)::integer as total_viewable,
+          COALESCE(SUM(clicks_spin), 0)::integer as total_clicks_spin,
+          COALESCE(SUM(clicks_buy), 0)::integer as total_clicks_buy,
+          COALESCE(SUM(exposure_time), 0)::integer as total_exposure_time
+        FROM lush_analytics
+      `);
+      const row = result.rows[0] || {};
+      const totalImpressions = parseInt(row.total_impressions) || 0;
+      const totalViewable = parseInt(row.total_viewable) || 0;
+      const totalClicksSpin = parseInt(row.total_clicks_spin) || 0;
+      const totalClicksBuy = parseInt(row.total_clicks_buy) || 0;
+      const totalClicks = totalClicksSpin + totalClicksBuy;
+      const totalExposureTime = parseInt(row.total_exposure_time) || 0;
+
+      return {
+        totalImpressions,
+        totalViewable,
+        viewabilityRate: totalImpressions > 0 ? (totalViewable / totalImpressions) * 100 : 0,
+        totalClicksSpin,
+        totalClicksBuy,
+        totalClicks,
+        totalExposureTime,
+        avgExposureTime: totalImpressions > 0 ? (totalExposureTime / totalImpressions) : 0
+      };
+    } catch (err) {
+      console.error('[Analytics Summary Postgres Error]:', err.message);
+    }
+  }
+
+  // Fallback: Local JSON database mode
+  try {
+    const db = loadLocalDatabase();
+    const analytics = db.analytics || [];
+    const totalImpressions = analytics.reduce((sum, r) => sum + (r.impressions || 0), 0);
+    const totalViewable = analytics.reduce((sum, r) => sum + (r.viewable || 0), 0);
+    const totalClicksSpin = analytics.reduce((sum, r) => sum + (r.clicks_spin || 0), 0);
+    const totalClicksBuy = analytics.reduce((sum, r) => sum + (r.clicks_buy || 0), 0);
+    const totalClicks = totalClicksSpin + totalClicksBuy;
+    const totalExposureTime = analytics.reduce((sum, r) => sum + (r.exposure_time || 0), 0);
+
+    return {
+      totalImpressions,
+      totalViewable,
+      viewabilityRate: totalImpressions > 0 ? (totalViewable / totalImpressions) * 100 : 0,
+      totalClicksSpin,
+      totalClicksBuy,
+      totalClicks,
+      totalExposureTime,
+      avgExposureTime: totalImpressions > 0 ? (totalExposureTime / totalImpressions) : 0
+    };
+  } catch (err) {
+    console.error('[Analytics Summary Local Error]:', err.message);
+  }
+
+  return {
+    totalImpressions: 0,
+    totalViewable: 0,
+    viewabilityRate: 0,
+    totalClicksSpin: 0,
+    totalClicksBuy: 0,
+    totalClicks: 0,
+    totalExposureTime: 0,
+    avgExposureTime: 0
+  };
+}
+
 // Admin Stats Endpoint
 app.get('/api/stats', async (req, res) => {
+  const summary = await getAnalyticsSummary();
   if (pool) {
     try {
       const result = await pool.query('SELECT * FROM lush_claims ORDER BY id DESC');
-      return res.json({ totalClaims: result.rowCount, claims: result.rows });
+      return res.json({ totalClaims: result.rowCount, claims: result.rows, summary });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message, summary });
     }
   }
   const db = loadLocalDatabase();
-  res.json({ totalClaims: db.claims.length, claims: db.claims });
+  res.json({ totalClaims: db.claims.length, claims: db.claims, summary });
 });
 
 // =============================================
@@ -701,16 +931,17 @@ function adminAuth(req, res, next) {
 
 // Admin: Protected Stats (requires password)
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
+  const summary = await getAnalyticsSummary();
   if (pool) {
     try {
       const result = await pool.query('SELECT * FROM lush_claims ORDER BY id DESC');
-      return res.json({ totalClaims: result.rowCount, claims: result.rows });
+      return res.json({ totalClaims: result.rowCount, claims: result.rows, summary });
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message, summary });
     }
   }
   const db = loadLocalDatabase();
-  res.json({ totalClaims: db.claims.length, claims: db.claims });
+  res.json({ totalClaims: db.claims.length, claims: db.claims, summary });
 });
 
 // Admin: Retry a Failed Claim
