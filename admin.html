@@ -722,7 +722,7 @@
         <div class="stat-card viewability">
           <div class="stat-icon">📈</div>
           <div class="stat-value" id="statViewability">—</div>
-          <div class="stat-label">Viewability Rate</div>
+          <div class="stat-label" id="statViewabilitySub">Viewability Rate</div>
         </div>
         <div class="stat-card clicks">
           <div class="stat-icon">🖱️</div>
@@ -898,9 +898,11 @@
 
       // Viewability Rate
       const viewRateEl = document.getElementById('statViewability');
+      const viewSubEl = document.getElementById('statViewabilitySub');
       animateNumber('statViewability', Math.round(summary.viewabilityRate));
       setTimeout(() => {
         viewRateEl.textContent = Math.round(summary.viewabilityRate) + '%';
+        viewSubEl.innerHTML = `Viewability Rate <span style="font-size:11px;opacity:0.7;display:block;margin-top:2px;">(${summary.totalViewable} of ${summary.totalImpressions} viewable)</span>`;
       }, 700);
 
       // Avg Exposure Time
